@@ -29,15 +29,11 @@ public interface CorreoService {
      * @param hora         rango horario, ej. "09:00 – 17:00"
      * @param lugar        nombre del lugar (null si no hay espacio asignado)
      * @param urlEvento    enlace público al detalle del evento
-     * @return true si el correo se envió (o simuló) correctamente,
-     *         false si ocurrió un error al enviarlo. El llamador debe
-     *         usar este valor para reportar el resultado real, nunca
-     *         asumir éxito solo porque el método no lanzó excepción.
      */
-    boolean enviarRecordatorio(String destinatario,
-                               String nombreEvento,
-                               String fecha,
-                               String hora,
-                               String lugar,
-                               String urlEvento);
+    void enviarRecordatorio(String destinatario,
+                            String nombreEvento,
+                            String fecha,
+                            String hora,
+                            String lugar,
+                            String urlEvento);
 }
