@@ -42,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
 
     private static final int HORAS_EXPIRACION_TOKEN = 1;
 
-    @Value("${app.url-base:http://localhost:4200}")
+    @Value("${app.frontend.url:http://localhost:4200}")
     private String urlBase;
 
     // ====================================================================

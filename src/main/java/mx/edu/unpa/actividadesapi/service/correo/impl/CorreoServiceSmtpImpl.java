@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -15,15 +16,18 @@ import org.springframework.stereotype.Service;
  * Implementación real del servicio de correo con JavaMailSender.
  * Activa cuando correo.smtp.habilitado=true en application.properties.
  *
- * Configuración necesaria en application.properties:
+ * Configuración necesaria en application.properties (vía variables de entorno):
  *   correo.smtp.habilitado=true
  *   spring.mail.host=smtp.gmail.com
  *   spring.mail.port=587
- *   spring.mail.username=tu-correo@gmail.com
- *   spring.mail.password=tu-app-password
+ *   spring.mail.username=...
+ *   spring.mail.password=...            (App Password de Gmail, no la contraseña normal)
  *   spring.mail.properties.mail.smtp.auth=true
  *   spring.mail.properties.mail.smtp.starttls.enable=true
- *   correo.remitente=no-reply@unpa.edu.mx
+ *   spring.mail.properties.mail.smtp.connectiontimeout=5000
+ *   spring.mail.properties.mail.smtp.timeout=5000
+ *   spring.mail.properties.mail.smtp.writetimeout=5000
+ *   correo.remitente=...
  */
 @Service
 @ConditionalOnProperty(name = "correo.smtp.habilitado", havingValue = "true")
@@ -48,10 +52,11 @@ public class CorreoServiceSmtpImpl implements CorreoService {
 
             mailSender.send(mensaje);
             log.info("Correo de recuperación enviado a {}", destinatario);
-        } catch (Exception e) {
-            log.error("Error al enviar correo de recuperación a {}: {}", destinatario, e.getMessage());
+        } catch (MailException e) {
             // No lanzamos excepción al cliente: la respuesta genérica es igual
             // si el correo existe o no (seguridad anti-enumeración de cuentas).
+            // Pero SÍ dejamos rastro claro en el log para poder investigar.
+            log.error("Error SMTP al enviar correo de recuperación a {}: {}", destinatario, e.getMessage());
         }
 
         RecuperarContrasenaResponse respuesta = new RecuperarContrasenaResponse();
@@ -61,8 +66,8 @@ public class CorreoServiceSmtpImpl implements CorreoService {
     }
 
     @Override
-    public void enviarRecordatorio(String destinatario, String nombreEvento,
-                                   String fecha, String hora, String lugar, String urlEvento) {
+    public boolean enviarRecordatorio(String destinatario, String nombreEvento,
+                                      String fecha, String hora, String lugar, String urlEvento) {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setFrom(remitente);
@@ -71,8 +76,10 @@ public class CorreoServiceSmtpImpl implements CorreoService {
             mensaje.setText(construirCuerpoRecordatorio(nombreEvento, fecha, hora, lugar, urlEvento));
             mailSender.send(mensaje);
             log.info("[RECORDATORIO] Enviado a {}", destinatario);
-        } catch (Exception e) {
-            log.error("[RECORDATORIO] Error al enviar a {}: {}", destinatario, e.getMessage());
+            return true;
+        } catch (MailException e) {
+            log.error("[RECORDATORIO] Error SMTP al enviar a {}: {}", destinatario, e.getMessage());
+            return false;
         }
     }
 

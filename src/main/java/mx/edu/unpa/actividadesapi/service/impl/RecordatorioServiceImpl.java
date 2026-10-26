@@ -94,28 +94,46 @@ public class RecordatorioServiceImpl implements RecordatorioService {
             String url   = urlBase + "/calendario/" + idActividad;
 
             // 5. Enviar correos y emitir progreso vía SSE
-            int enviados = 0;
+            int procesados = 0;
+            int exitosos = 0;
+            List<String> fallidos = new java.util.ArrayList<>();
+
             for (String correo : correos) {
-                correoService.enviarRecordatorio(correo, nombreEvento, fecha, hora, lugar, url);
-                enviados++;
+                boolean ok = correoService.enviarRecordatorio(correo, nombreEvento, fecha, hora, lugar, url);
+                procesados++;
+                if (ok) {
+                    exitosos++;
+                } else {
+                    fallidos.add(correo);
+                }
                 emitir(emitter, new RecordatorioProgresoResponse(
-                        enviados, total, "EN_PROGRESO",
-                        "Enviando " + enviados + " de " + total + "..."));
+                        procesados, total, "EN_PROGRESO",
+                        "Enviando " + procesados + " de " + total + "..."));
             }
 
-            // 6. Guardar log de auditoría
+            // 6. Guardar log de auditoría (se registra el total de destinatarios
+            //    procesados; los fallidos quedan en el log de aplicación para investigar)
             LogRecordatorio registro = new LogRecordatorio();
             registro.setActividad(actividad);
             registro.setUsuario(usuario);
             registro.setTotalDestinatarios(total);
             logRepository.save(registro);
 
-            log.info("US-07: Recordatorios enviados actividad={} usuario={} total={}", idActividad, idUsuario, total);
+            if (fallidos.isEmpty()) {
+                log.info("Recordatorios enviados actividad={} usuario={} total={}", idActividad, idUsuario, total);
+            } else {
+                log.warn("Recordatorios actividad={} usuario={} exitosos={}/{} fallidos={}",
+                        idActividad, idUsuario, exitosos, total, fallidos);
+            }
 
-            // 7. Evento final
+            // 7. Evento final — el mensaje refleja el resultado real, no solo que el loop terminó
+            String mensajeFinal = fallidos.isEmpty()
+                    ? "✅ Recordatorio enviado a " + total + " inscrito(s)."
+                    : "⚠️ Enviado a " + exitosos + " de " + total + " inscrito(s). "
+                    + fallidos.size() + " fallaron — revisa el log del servidor para más detalle.";
+
             emitir(emitter, new RecordatorioProgresoResponse(
-                    total, total, "COMPLETADO",
-                    "✅ Recordatorio enviado a " + total + " inscrito(s)."));
+                    total, total, "COMPLETADO", mensajeFinal));
 
             emitter.complete();
 
@@ -142,7 +160,7 @@ public class RecordatorioServiceImpl implements RecordatorioService {
         try {
             emitter.send(SseEmitter.event().name("progreso").data(datos));
         } catch (IOException e) {
-            log.warn("US-07: Cliente SSE desconectado.");
+            log.warn("Cliente SSE desconectado.");
             emitter.completeWithError(e);
         }
     }

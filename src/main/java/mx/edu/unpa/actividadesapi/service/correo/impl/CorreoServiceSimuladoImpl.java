@@ -36,8 +36,8 @@ public class CorreoServiceSimuladoImpl implements CorreoService {
     }
 
     @Override
-    public void enviarRecordatorio(String destinatario, String nombreEvento,
-                                   String fecha, String hora, String lugar, String urlEvento) {
+    public boolean enviarRecordatorio(String destinatario, String nombreEvento,
+                                      String fecha, String hora, String lugar, String urlEvento) {
         log.info("==========================================================");
         log.info("[RECORDATORIO SIMULADO] Para    : {}", destinatario);
         log.info("[RECORDATORIO SIMULADO] Evento  : {}", nombreEvento);
@@ -45,5 +45,6 @@ public class CorreoServiceSimuladoImpl implements CorreoService {
         log.info("[RECORDATORIO SIMULADO] Lugar   : {}", lugar != null ? lugar : "Sin espacio asignado");
         log.info("[RECORDATORIO SIMULADO] Enlace  : {}", urlEvento);
         log.info("==========================================================");
+        return true; // la simulación siempre "tiene éxito"
     }
 }
